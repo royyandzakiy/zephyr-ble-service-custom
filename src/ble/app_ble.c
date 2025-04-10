@@ -1,0 +1,58 @@
+#include <zephyr/kernel.h>
+#include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/settings/settings.h>
+// #include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(app_ble);
+
+/* Services */
+// #include <services/mysensor.h>
+
+/* Local */
+#include <app_ble.h>
+
+#define DEVICE_NAME CONFIG_BT_DEVICE_NAME
+#define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
+
+static const struct bt_data ad[] = {
+    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)), // 
+    BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),
+};
+
+int app_ble_init(void)
+{
+
+    int err = 0;
+
+    /* Enable BLE peripheral */
+    err = bt_enable(NULL); // NULL is for bluetooth ready callback
+    if (err)
+    {
+        LOG_ERR("Bluetooth init failed. Err: %i", err);
+        return err;
+    }
+
+    if (IS_ENABLED(CONFIG_SETTINGS))
+    {
+        settings_load();
+    }
+
+    /* Register DFU */
+    // smp_bt_register();
+
+    /* Start advertising */
+    err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), NULL, 0); // advertise so that the client or mobile app can find this peripheral
+    if (err)
+    {
+        LOG_ERR("Advertising failed to start (err %d)", err);
+        return err;
+    }
+
+    LOG_INF("Bluetooth initialization complete!");
+    return 0;
+}
+
+int app_ble_publish(const int *data)
+{
+    return mysensor_publish(NULL, data);
+}

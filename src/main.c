@@ -1,48 +1,37 @@
-/*
- * Copyright (c) 2016 Intel Corporation
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
-#include <stdio.h>
+// main.c
 #include <zephyr/kernel.h>
-#include <zephyr/drivers/gpio.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/logging/log.h>
 
-/* 1000 msec = 1 sec */
-#define SLEEP_TIME_MS   1000
+LOG_MODULE_REGISTER(main);
 
-/* The devicetree node identifier for the "led0" alias. */
-#define LED0_NODE DT_ALIAS(led0)
+#include <services/mysensor.h>
+#include <app_ble.h>
 
-/*
- * A build error on this line means your board is unsupported.
- * See the sample documentation for information on how to fix this.
- */
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+int data_global = 0;
+
+void publish_data() {
+    ++data_global;
+    app_ble_publish(&data_global);
+}
 
 int main(void)
 {
-	int ret;
-	bool led_state = true;
+	int err = 0;
 
-	if (!gpio_is_ready_dt(&led)) {
-		return 0;
-	}
+    printk("Hello World from printk!\n");
+    LOG_INF("ADC Sensor BLE Peripheral");
 
-	ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
-	if (ret < 0) {
-		return 0;
-	}
+    /* Setup BLE */
+    err = app_ble_init();
+	if (err)
+        __ASSERT_MSG_INFO("Unable to init bluetooth library. Err: %i", err);
 
-	while (1) {
-		ret = gpio_pin_toggle_dt(&led);
-		if (ret < 0) {
-			return 0;
-		}
+    while (true) {
+        LOG_INF("Sending data %d", data_global);
+        publish_data();
+        k_msleep(1000);
+    }
 
-		led_state = !led_state;
-		printf("LED state: %s\n", led_state ? "ON" : "OFF");
-		k_msleep(SLEEP_TIME_MS);
-	}
 	return 0;
 }
