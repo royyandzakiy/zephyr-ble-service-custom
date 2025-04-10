@@ -79,7 +79,7 @@ BT_GATT_SERVICE_DEFINE(mysensor_service,
     BT_GATT_CCC(app_ble_mysensor2_ccc_cfg_changed_cb,
                 BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
 
-    BT_GATT_CHARACTERISTIC(BT_UUID_MYSENSOR3, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, 
+    BT_GATT_CHARACTERISTIC(BT_UUID_MYSENSOR3, BT_GATT_CHRC_NOTIFY, 
                 BT_GATT_PERM_NONE, NULL, NULL, NULL),
     BT_GATT_CCC(app_ble_mysensor3_ccc_cfg_changed_cb,
                 BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
