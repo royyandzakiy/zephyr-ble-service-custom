@@ -145,3 +145,54 @@ int bt_hrs_notify(uint16_t heartrate)
 
 	return rc == -ENOTCONN ? 0 : rc;
 }
+
+// void some_function_where_you_read_adc(uint16_t adc_value)
+// {
+//     // Assuming you want to send the raw 16-bit ADC value
+//     if (app_ble_get_connection()) {
+//         app_ble_send_mysensor_data((uint8_t *)&adc_value, sizeof(adc_value));
+//     } else {
+//         LOG_WRN("Not connected, ADC data not sent");
+//     }
+// }
+
+// // If you want to pack more data (e.g., multiple ADC readings)
+// #define ADC_BUFFER_SIZE 10
+// uint16_t adc_buffer[ADC_BUFFER_SIZE];
+// int adc_index = 0;
+
+// void another_adc_reading_function(uint16_t new_adc_value)
+// {
+//     adc_buffer[adc_index++] = new_adc_value;
+//     if (adc_index == ADC_BUFFER_SIZE) {
+//         if (app_ble_get_connection()) {
+//             app_ble_send_mysensor_data((uint8_t *)adc_buffer, sizeof(adc_buffer));
+//         } else {
+//             LOG_WRN("Not connected, ADC buffer not sent");
+//         }
+//         adc_index = 0;
+//     }
+// }
+
+// int app_ble_send_mysensor_data(const uint8_t *data, uint16_t len)
+// {
+//     const struct bt_gatt_attr *attr = &mysensor_service.attrs[MYSENSOR_ATTR_POS];
+//     struct bt_gatt_notify_params params = {
+//         .attr = attr,
+//         .data = data,
+//         .len = len,
+//         .func = NULL,
+//     };
+
+//     if (bt_gatt_is_subscribed(NULL, attr, BT_GATT_CCC_NOTIFY)) {
+//         int ret = bt_gatt_notify_cb(NULL, &params);
+//         if (ret) {
+//             LOG_ERR("Failed to send MySensor notification (err %d)", ret);
+//             return ret;
+//         }
+//         return 0;
+//     } else {
+//         LOG_WRN("MySensor notifications not enabled on the client");
+//         return -EAGAIN;
+//     }
+// }
