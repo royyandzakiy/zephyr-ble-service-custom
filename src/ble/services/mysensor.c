@@ -21,67 +21,83 @@ static void app_ble_mysensor_ccc_cfg_changed_cb(const struct bt_gatt_attr *attr,
 
     bool notif_enabled = (value == BT_GATT_CCC_NOTIFY);
 
-    LOG_INF("Air Quality Wing service notifications %s", notif_enabled ? "enabled" : "disabled");
+    LOG_INF("MySensor Characteristic notifications %s", notif_enabled ? "enabled" : "disabled");
+}
+
+static void app_ble_mysensor2_ccc_cfg_changed_cb(const struct bt_gatt_attr *attr, uint16_t value)
+{
+    ARG_UNUSED(attr);
+
+    bool notif_enabled = (value == BT_GATT_CCC_NOTIFY);
+
+    LOG_INF("MySensor2 Characteristic notifications %s", notif_enabled ? "enabled" : "disabled");
+}
+
+static void app_ble_mysensor3_ccc_cfg_changed_cb(const struct bt_gatt_attr *attr, uint16_t value)
+{
+    ARG_UNUSED(attr);
+
+    bool notif_enabled = (value == BT_GATT_CCC_NOTIFY);
+
+    LOG_INF("MySensor3 Characteristic notifications %s", notif_enabled ? "enabled" : "disabled");
+}
+
+static void hrmc_ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value)
+{
+	ARG_UNUSED(attr);
+
+	bool notif_enabled = (value == BT_GATT_CCC_NOTIFY);
+
+	LOG_INF("HRS notifications %s", notif_enabled ? "enabled" : "disabled");
 }
 
 /* Make sure this is updated to match BT_GATT_SERVICE_DEFINE below */
 enum app_ble_mysensor_char_position
 {
-    MYSENSOR_ADC_ATTR_POS = 2,
-    // AQW_TEMP_ATTR_POS = 2,
-    // AQW_HUMIDITY_ATTR_POS = 5,
-    // AQW_VOC_ATTR_POS = 8,
-    // AQW_PM25_ATTR_POS = 11,
+    MYSENSOR_ATTR_POS = 2,
+    HRS_ATTR_POS = 5,
+    MYSENSOR2_ATTR_POS = 8,
+    MYSENSOR3_ATTR_POS = 11,
 };
 
 /* Air Quality Wing Service Declaration */
 BT_GATT_SERVICE_DEFINE(mysensor_service,
-                       BT_GATT_PRIMARY_SERVICE(BT_UUID_MYSENSOR_SERVICE),
+    BT_GATT_PRIMARY_SERVICE(BT_UUID_MYSENSOR_SERVICE),
 
-                       BT_GATT_CHARACTERISTIC(BT_UUID_MYSENSOR_ADC, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, 
-                                    BT_GATT_PERM_READ, NULL, NULL, NULL),
-                       BT_GATT_CCC(app_ble_mysensor_ccc_cfg_changed_cb, // this can be a callback, or just NULL to do nothing when the notify config changes
-                                   BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+    BT_GATT_CHARACTERISTIC(BT_UUID_MYSENSOR, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, 
+                BT_GATT_PERM_READ, NULL, NULL, NULL),
+    BT_GATT_CCC(app_ble_mysensor_ccc_cfg_changed_cb, // this can be a callback, or just NULL to do nothing when the notify config changes
+                BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
 
-                    //    BT_GATT_CHARACTERISTIC(BT_UUID_AQW_TEMPERATURE, BT_GATT_CHRC_NOTIFY,
-                    //                           BT_GATT_PERM_NONE, NULL, NULL, NULL),
-                    //    BT_GATT_CCC(app_ble_mysensor_ccc_cfg_changed_cb,
-                    //                BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
-                    //    BT_GATT_CHARACTERISTIC(BT_UUID_AQW_HUMIDITY, BT_GATT_CHRC_NOTIFY,
-                    //                           BT_GATT_PERM_NONE, NULL, NULL, NULL),
-                    //    BT_GATT_CCC(app_ble_mysensor_ccc_cfg_changed_cb,
-                    //                BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
-                    //    BT_GATT_CHARACTERISTIC(BT_UUID_AQW_VOC, BT_GATT_CHRC_NOTIFY,
-                    //                           BT_GATT_PERM_NONE, NULL, NULL, NULL),
-                    //    BT_GATT_CCC(app_ble_mysensor_ccc_cfg_changed_cb,
-                    //                BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
-                    //    BT_GATT_CHARACTERISTIC(BT_UUID_AQW_PM25, BT_GATT_CHRC_NOTIFY,
-                    //                           BT_GATT_PERM_NONE, NULL, NULL, NULL),
-                    //    BT_GATT_CCC(app_ble_mysensor_ccc_cfg_changed_cb,
-                    //                BT_GATT_PERM_READ | BT_GATT_PERM_WRITE), 
-                        );
+    BT_GATT_CHARACTERISTIC(BT_UUID_HRS_MEASUREMENT, BT_GATT_CHRC_NOTIFY,
+                BT_GATT_PERM_NONE, NULL, NULL, NULL),
+    BT_GATT_CCC(hrmc_ccc_cfg_changed,
+                BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
 
-// void app_ble_mysensor_publish()
-int mysensor_publish(struct bt_conn *conn, const int *data)
+    BT_GATT_CHARACTERISTIC(BT_UUID_MYSENSOR2, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, 
+                BT_GATT_PERM_NONE, NULL, NULL, NULL),
+    BT_GATT_CCC(app_ble_mysensor2_ccc_cfg_changed_cb,
+                BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+
+    BT_GATT_CHARACTERISTIC(BT_UUID_MYSENSOR3, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, 
+                BT_GATT_PERM_NONE, NULL, NULL, NULL),
+    BT_GATT_CCC(app_ble_mysensor3_ccc_cfg_changed_cb,
+                BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+);
+
+int bt_mysensor_notify(struct bt_conn *conn, const uint16_t data)
 {
     struct bt_gatt_notify_params params = {0};
     const struct bt_gatt_attr *attr = NULL;
 
-    // switch (data->type)
-    // switch (99)
-    // {
-    // case MYSENSOR_ADC_SENSOR:
-    //     attr = &mysensor_service.attrs[MYSENSOR_ADC_ATTR_POS];
-    //     break;
-    // default:
-    //     return -EINVAL;
-    //     break;
-    // }
+    static uint8_t combined_data[2];
+    combined_data[0] = 0x06; // will stay fixed with this number
+	combined_data[1] = data; // will change dynamically
 
-    attr = &mysensor_service.attrs[MYSENSOR_ADC_ATTR_POS];
+    attr = &mysensor_service.attrs[MYSENSOR_ATTR_POS];
     params.attr = attr;
-    params.data = &data;
-    params.len = sizeof(data);
+    params.data = &combined_data;
+    params.len = sizeof(combined_data);
     params.func = NULL;
 
     if (!conn)
@@ -97,4 +113,35 @@ int mysensor_publish(struct bt_conn *conn, const int *data)
     {
         return -EINVAL;
     }
+}
+
+int bt_mysensor2_notify(uint16_t data)
+{
+	int rc;
+
+	rc = bt_gatt_notify(NULL, &mysensor_service.attrs[MYSENSOR2_ATTR_POS], &data, sizeof(data));
+
+	return rc == -ENOTCONN ? 0 : rc;
+}
+
+int bt_mysensor3_notify(uint16_t data)
+{
+	int rc;
+
+	rc = bt_gatt_notify(NULL, &mysensor_service.attrs[MYSENSOR3_ATTR_POS], &data, sizeof(data));
+
+	return rc == -ENOTCONN ? 0 : rc;
+}
+
+int bt_hrs_notify(uint16_t heartrate)
+{
+	int rc;
+	static uint8_t hrm[2];
+
+	hrm[0] = 0x06; /* uint8, sensor contact */
+	hrm[1] = heartrate;
+
+	rc = bt_gatt_notify(NULL, &mysensor_service.attrs[HRS_ATTR_POS], &hrm, sizeof(hrm));
+
+	return rc == -ENOTCONN ? 0 : rc;
 }
