@@ -6,10 +6,12 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/sys/timeutil.h>
 
+#include <app_ble.h> // Include for BLE functionality
+#include <services/mysensor.h>
+
 LOG_MODULE_REGISTER(main);
 
-#include "ble/app_ble.h" // Include for BLE functionality
-
+/* ============== SINEWAVE GENERATOR ============== */
 #define SAMPLING_RATE 10000U // Hz (adjust as needed, but be realistic about BLE limits)
 #define PI 3.14159265358979323846
 #define FREQUENCY 10.0f      // Hz (frequency of the sine wave)
@@ -23,21 +25,14 @@ LOG_MODULE_REGISTER(main);
 // Calculate the number of samples we can fit in one notification
 #define SAMPLES_PER_NOTIFICATION (MAX_PAYLOAD_SIZE / BYTES_PER_SAMPLE)
 
-void main(void)
-{
+uint32_t timestamp = 0;
+int16_t sine_value;
+uint8_t data_buffer[MAX_PAYLOAD_SIZE];
+int sample_index = 0;
+
+void sinewave_send_loop() {
     int ret;
-    uint32_t timestamp = 0;
-    int16_t sine_value;
-    uint8_t data_buffer[MAX_PAYLOAD_SIZE];
-    int sample_index = 0;
-
     LOG_INF("Sine wave generator started");
-
-    ret = app_ble_init();
-    if (ret) {
-        LOG_ERR("BLE initialization failed (err %d)", ret);
-        return;
-    }
 
     while (1) {
         struct bt_conn *conn = app_ble_get_connection();
@@ -54,17 +49,32 @@ void main(void)
                 timestamp++;
             }
 
-            // ret = app_ble_send_mysensor_data(data_buffer, sizeof(data_buffer));
+            ret = app_ble_mysensor_data_send(data_buffer, sizeof(data_buffer));
             if (ret) {
                 LOG_ERR("Failed to send MySensor data (err %d)", ret);
             }
 
             sample_index = 0;
 
-            k_usleep(1); // Adjust as needed, experiment with small values
+            // k_usleep(1); // Adjust as needed, experiment with small values
+            k_sleep(K_MSEC(1000)); // Adjust as needed, experiment with small values
         } else {
             LOG_WRN("Not connected, waiting...");
             k_sleep(K_MSEC(1000)); // Wait if not connected
         }
     }
+}
+
+/* ============== MAIN ============== */
+void main(void)
+{
+    int ret;
+
+    ret = app_ble_init();
+    if (ret) {
+        LOG_ERR("BLE initialization failed (err %d)", ret);
+        return;
+    }
+
+    sinewave_send_loop();
 }
