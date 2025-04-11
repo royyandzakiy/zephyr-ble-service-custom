@@ -12,8 +12,9 @@ LOG_MODULE_REGISTER(app_ble_mysensor_service);
 #include <string.h>
 #include <errno.h>
 
-#include <app_ble.h>
+#include "../app_ble.h"
 #include <services/mysensor.h>
+struct bt_conn *current_conn = NULL;
 
 static void app_ble_mysensor_ccc_cfg_changed_cb(const struct bt_gatt_attr *attr, uint16_t value)
 {
@@ -68,21 +69,6 @@ BT_GATT_SERVICE_DEFINE(mysensor_service,
                 BT_GATT_PERM_READ, NULL, NULL, NULL),
     BT_GATT_CCC(app_ble_mysensor_ccc_cfg_changed_cb, // this can be a callback, or just NULL to do nothing when the notify config changes
                 BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
-
-    BT_GATT_CHARACTERISTIC(BT_UUID_HRS_MEASUREMENT, BT_GATT_CHRC_NOTIFY,
-                BT_GATT_PERM_NONE, NULL, NULL, NULL),
-    BT_GATT_CCC(hrmc_ccc_cfg_changed,
-                BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
-
-    BT_GATT_CHARACTERISTIC(BT_UUID_MYSENSOR2, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, 
-                BT_GATT_PERM_NONE, NULL, NULL, NULL),
-    BT_GATT_CCC(app_ble_mysensor2_ccc_cfg_changed_cb,
-                BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
-
-    BT_GATT_CHARACTERISTIC(BT_UUID_MYSENSOR3, BT_GATT_CHRC_NOTIFY, 
-                BT_GATT_PERM_NONE, NULL, NULL, NULL),
-    BT_GATT_CCC(app_ble_mysensor3_ccc_cfg_changed_cb,
-                BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
 );
 
 int bt_mysensor_notify(struct bt_conn *conn, const uint16_t data)
@@ -115,35 +101,32 @@ int bt_mysensor_notify(struct bt_conn *conn, const uint16_t data)
     }
 }
 
-int bt_mysensor2_notify(uint16_t data)
+int app_ble_send_mysensor_data(const uint8_t *data, uint16_t len)
 {
-	int rc;
+    if (!current_conn) {
+        LOG_WRN("Not connected, cannot send MySensor data");
+        return -ENOTCONN;
+    }
 
-	rc = bt_gatt_notify(NULL, &mysensor_service.attrs[MYSENSOR2_ATTR_POS], &data, sizeof(data));
+    const struct bt_gatt_attr *attr = &mysensor_service.attrs[MYSENSOR_ATTR_POS];
+    struct bt_gatt_notify_params params = {
+        .attr = attr,
+        .data = data,
+        .len = len,
+        .func = NULL,
+    };
 
-	return rc == -ENOTCONN ? 0 : rc;
-}
-
-int bt_mysensor3_notify(uint16_t data)
-{
-	int rc;
-
-	rc = bt_gatt_notify(NULL, &mysensor_service.attrs[MYSENSOR3_ATTR_POS], &data, sizeof(data));
-
-	return rc == -ENOTCONN ? 0 : rc;
-}
-
-int bt_hrs_notify(uint16_t heartrate)
-{
-	int rc;
-	static uint8_t hrm[2];
-
-	hrm[0] = 0x06; /* uint8, sensor contact */
-	hrm[1] = heartrate;
-
-	rc = bt_gatt_notify(NULL, &mysensor_service.attrs[HRS_ATTR_POS], &hrm, sizeof(hrm));
-
-	return rc == -ENOTCONN ? 0 : rc;
+    if (bt_gatt_is_subscribed(current_conn, attr, BT_GATT_CCC_NOTIFY)) {
+        int ret = bt_gatt_notify_cb(current_conn, &params);
+        if (ret) {
+            LOG_ERR("Failed to send MySensor notification (err %d)", ret);
+            return ret;
+        }
+        return 0;
+    } else {
+        LOG_WRN("MySensor notifications not enabled on the client");
+        return -EAGAIN;
+    }
 }
 
 // void some_function_where_you_read_adc(uint16_t adc_value)
