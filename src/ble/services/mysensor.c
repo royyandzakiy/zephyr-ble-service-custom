@@ -16,6 +16,31 @@
 
 LOG_MODULE_REGISTER(app_ble_mysensor_service);
 
+// ------------------------------------
+static void app_ble_mysensor_ccc_cfg_changed_cb(const struct bt_gatt_attr *attr, uint16_t value);
+
+static uint8_t command_value;
+static ssize_t read_mycommand(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+				   void *buf, uint16_t len, uint16_t offset);
+static ssize_t write_mycommand(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+					const void *buf, uint16_t len, uint16_t offset,
+					uint8_t flags);
+
+BT_GATT_SERVICE_DEFINE(mysensor_service,
+    BT_GATT_PRIMARY_SERVICE(BT_UUID_MYSENSOR_SERVICE),
+
+    BT_GATT_CHARACTERISTIC(BT_UUID_MYSENSOR, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+                BT_GATT_PERM_READ, NULL, NULL, NULL), // Read permissions might be needed if notifiable characteristics are also readable.
+    BT_GATT_CCC(app_ble_mysensor_ccc_cfg_changed_cb, // this can be a callback, or just NULL to do nothing when the notify config changes
+                BT_GATT_PERM_READ | BT_GATT_PERM_WRITE), // CCC needs read/write permissions
+    
+    BT_GATT_CHARACTERISTIC(BT_UUID_MYCOMMAND_CHAR,
+                    BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
+                    BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
+                    read_mycommand, write_mycommand, &command_value),
+);
+
+// ------------------------------------
 // Add a flag to track if notifications are enabled
 static bool mysensor_notifications_enabled = false;
 
@@ -39,22 +64,11 @@ enum app_ble_mysensor_char_position
     MYSENSOR_ATTR_POS = 2, // 0: Service UUID, 1: Characteristic UUID, 2: Characteristic Value, 3: CCCD
 };
 
-// Service & Characteristic Declaration
-BT_GATT_SERVICE_DEFINE(mysensor_service,
-    BT_GATT_PRIMARY_SERVICE(BT_UUID_MYSENSOR_SERVICE),
-
-    BT_GATT_CHARACTERISTIC(BT_UUID_MYSENSOR, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
-                BT_GATT_PERM_READ, NULL, NULL, NULL), // Read permissions might be needed if notifiable characteristics are also readable.
-    BT_GATT_CCC(app_ble_mysensor_ccc_cfg_changed_cb, // this can be a callback, or just NULL to do nothing when the notify config changes
-                BT_GATT_PERM_READ | BT_GATT_PERM_WRITE), // CCC needs read/write permissions
-);
-
 // Expose a getter function for the notification state
 bool bt_mysensor_are_notifications_enabled(void)
 {
     return mysensor_notifications_enabled;
 }
-
 
 int bt_mysensor_notify(struct bt_conn *current_conn, const uint8_t *data, const uint16_t len)
 {
@@ -79,4 +93,67 @@ int bt_mysensor_notify(struct bt_conn *current_conn, const uint8_t *data, const 
     }
 
     return 0; // Success
+}
+
+// ------------------------------------
+// Storage for the characteristic value.
+// Let's make it a simple 1-byte value for demonstration.
+static uint8_t command_value = 0;
+
+// Read callback function for the Command Characteristic
+static ssize_t read_mycommand(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+				   void *buf, uint16_t len, uint16_t offset)
+{
+	// Get the pointer to the characteristic value from the attribute's user_data
+	const uint8_t *value = attr->user_data;
+
+	// Use bt_gatt_attr_read to handle offset and length checks for reading
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, value, sizeof(command_value));
+}
+
+// Write callback function for the Command Characteristic
+static ssize_t write_mycommand(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+					const void *buf, uint16_t len, uint16_t offset,
+					uint8_t flags)
+{
+	// Get the pointer to the characteristic value from the attribute's user_data
+	uint8_t *value = attr->user_data;
+
+	// Validate the length of the write data
+	if (len != sizeof(command_value)) {
+		LOG_WRN("Invalid write length for command characteristic (%d vs %d expected)", len, sizeof(command_value));
+		// Return the GATT error for invalid attribute length
+		return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
+	}
+
+	// Validate the offset
+	if (offset > 0) {
+		LOG_WRN("Invalid write offset for command characteristic (%d)", offset);
+		// Return the GATT error for invalid offset
+		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
+	}
+
+	// Copy the data from the write buffer into our characteristic value storage
+	memcpy(value, buf, sizeof(command_value));
+
+	LOG_INF("Command characteristic written. New value: 0x%02x", *value);
+
+	// At this point, you would typically process the command_value.
+	// For example, you could use a switch statement to act on different command values:
+	switch (*value) {
+	    case 0x01:
+	        LOG_INF("Received command: Start something!");
+	        // Add your code to start an action
+	        break;
+	    case 0x02:
+	        LOG_INF("Received command: Stop something!");
+	        // Add your code to stop an action
+	        break;
+	    default:
+	        LOG_WRN("Received unknown command: 0x%02x", *value);
+	        break;
+	}
+
+	// Return the number of bytes successfully written
+	return len;
 }
