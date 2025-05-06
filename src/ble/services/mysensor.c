@@ -29,7 +29,7 @@ static ssize_t write_mycommand(struct bt_conn *conn, const struct bt_gatt_attr *
 BT_GATT_SERVICE_DEFINE(mysensor_service,
     BT_GATT_PRIMARY_SERVICE(BT_UUID_MYSENSOR_SERVICE),
 
-    BT_GATT_CHARACTERISTIC(BT_UUID_MYSENSOR, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+    BT_GATT_CHARACTERISTIC(BT_UUID_MYSENSOR_CHAR, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
                 BT_GATT_PERM_READ, NULL, NULL, NULL), // Read permissions might be needed if notifiable characteristics are also readable.
     BT_GATT_CCC(app_ble_mysensor_ccc_cfg_changed_cb, // this can be a callback, or just NULL to do nothing when the notify config changes
                 BT_GATT_PERM_READ | BT_GATT_PERM_WRITE), // CCC needs read/write permissions
