@@ -65,6 +65,51 @@ void sinewave_send_loop() {
     }
 }
 
+/* ============== COUNTER GENERATOR ============== */
+static uint32_t tick_counter = 0;
+static uint8_t counter_data_buffer[4]; // Buffer to hold a 32-bit counter
+
+void counter_send_loop() {
+    int ret;
+    LOG_INF("Tick counter generator started");
+
+    while (1) {
+        struct bt_conn *conn = app_ble_get_connection();
+        if (conn) {
+            // Increment the counter
+            tick_counter++;
+
+            // Prepare the data buffer with the current counter value (little-endian)
+            counter_data_buffer[0] = (uint8_t)(tick_counter & 0xFF);
+            counter_data_buffer[1] = (uint8_t)((tick_counter >> 8) & 0xFF);
+            counter_data_buffer[2] = (uint8_t)((tick_counter >> 16) & 0xFF);
+            counter_data_buffer[3] = (uint8_t)((tick_counter >> 24) & 0xFF);
+
+            // Send the notification with the counter value
+            // Only send if notifications are enabled by the client.
+            // The bt_mysensor_notify function already checks this,
+            // and returns -EAGAIN if not enabled.
+            ret = app_ble_mysensor_data_send(counter_data_buffer, sizeof(counter_data_buffer));
+
+            // Log the error only if it's not -EAGAIN (notifications not enabled)
+            if (ret && ret != -EAGAIN) {
+                 // Convert negative Zephyr error to positive errno for clearer logging
+                 LOG_ERR("Failed to send MySensor data (err %d)", -ret);
+            } else if (ret == 0) {
+                // Optional: Log successful send
+                // LOG_INF("Sent counter: %u", tick_counter);
+            }
+
+            // Wait for 1 second before sending the next value
+            k_sleep(K_MSEC(1000));
+        } else {
+            // Not connected, wait and don't send
+            LOG_WRN("Not connected, waiting...");
+            k_sleep(K_MSEC(1000));
+        }
+    }
+}
+
 /* ============== MAIN ============== */
 void main(void)
 {
@@ -76,5 +121,7 @@ void main(void)
         return;
     }
 
-    sinewave_send_loop();
+    // sinewave_send_loop();
+
+    counter_send_loop();
 }
