@@ -59,19 +59,19 @@ static ssize_t write_mycommand(struct bt_conn *conn, const struct bt_gatt_attr *
 
 	// At this point, you would typically process the command_value.
 	// For example, you could use a switch statement to act on different command values:
-	// switch (*value) {
-	//     case 0x01:
-	//         LOG_INF("Received command: Start something!");
-	//         // Add your code to start an action
-	//         break;
-	//     case 0x02:
-	//         LOG_INF("Received command: Stop something!");
-	//         // Add your code to stop an action
-	//         break;
-	//     default:
-	//         LOG_WRN("Received unknown command: 0x%02x", *value);
-	//         break;
-	// }
+	switch (*value) {
+	    case 0x01:
+	        LOG_INF("Received command: Start something!");
+	        // Add your code to start an action
+	        break;
+	    case 0x02:
+	        LOG_INF("Received command: Stop something!");
+	        // Add your code to stop an action
+	        break;
+	    default:
+	        LOG_WRN("Received unknown command: 0x%02x", *value);
+	        break;
+	}
 
 	// Return the number of bytes successfully written
 	return len;

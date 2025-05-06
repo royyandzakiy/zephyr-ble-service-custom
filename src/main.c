@@ -1,3 +1,4 @@
+// main.c
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <math.h>
@@ -5,6 +6,7 @@
 #include <stdlib.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/sys/timeutil.h>
+#include <errno.h> // Include errno.h for error code definitions
 
 #include <app_ble.h> // Include for BLE functionality
 #include <services/mysensor.h>
@@ -36,7 +38,9 @@ void sinewave_send_loop() {
 
     while (1) {
         struct bt_conn *conn = app_ble_get_connection();
-        if (conn) {
+
+        // Only attempt to send if connected AND notifications are enabled
+        if (conn && bt_mysensor_are_notifications_enabled()) {
             // Generate sine wave data and send it as fast as possible
             for (int i = 0; i < SAMPLES_PER_NOTIFICATION; ++i) {
                 float time = (float)timestamp / SAMPLING_RATE;
@@ -50,8 +54,17 @@ void sinewave_send_loop() {
             }
 
             ret = app_ble_mysensor_data_send(data_buffer, sizeof(data_buffer));
-            if (ret) {
-                LOG_ERR("Failed to send MySensor data (err %d)", ret);
+
+            // Log errors, but ignore -ENOTCONN (not connected) and -EAGAIN (notifications not enabled)
+            // The service function now handles the -EAGAIN check internally before calling bt_gatt_notify_cb,
+            // but keeping the check here doesn't hurt and provides clarity.
+            // The service function bt_mysensor_notify will return -ENOTCONN or -EAGAIN if not applicable.
+            if (ret && ret != -ENOTCONN && ret != -EAGAIN) {
+                // Convert negative Zephyr error to positive errno for clearer logging
+                LOG_ERR("Failed to send MySensor data (err %d)", -ret);
+            } else if (ret == 0) {
+                // Optional: Log successful send (uncomment if desired)
+                // LOG_INF("Sent sinewave data");
             }
 
             sample_index = 0;
@@ -59,8 +72,9 @@ void sinewave_send_loop() {
             // k_usleep(1); // Adjust as needed, experiment with small values
             k_sleep(K_MSEC(1000)); // Adjust as needed, experiment with small values
         } else {
-            LOG_WRN("Not connected, waiting...");
-            k_sleep(K_MSEC(1000)); // Wait if not connected
+            // If not connected or notifications not enabled, just wait.
+            // LOG_WRN("Waiting for connection or notifications to be enabled..."); // Optional log
+            k_sleep(K_MSEC(1000)); // Wait if not connected or not subscribed
         }
     }
 }
@@ -75,7 +89,9 @@ void counter_send_loop() {
 
     while (1) {
         struct bt_conn *conn = app_ble_get_connection();
-        if (conn) {
+
+        // Only attempt to send if connected AND notifications are enabled
+        if (conn && bt_mysensor_are_notifications_enabled()) {
             // Increment the counter
             tick_counter++;
 
@@ -86,26 +102,28 @@ void counter_send_loop() {
             counter_data_buffer[3] = (uint8_t)((tick_counter >> 24) & 0xFF);
 
             // Send the notification with the counter value
-            // Only send if notifications are enabled by the client.
-            // The bt_mysensor_notify function already checks this,
-            // and returns -EAGAIN if not enabled.
             ret = app_ble_mysensor_data_send(counter_data_buffer, sizeof(counter_data_buffer));
 
-            // Log the error only if it's not -EAGAIN (notifications not enabled)
-            if (ret && ret != -EAGAIN) {
-                 // Convert negative Zephyr error to positive errno for clearer logging
-                 LOG_ERR("Failed to send MySensor data (err %d)", -ret);
+            // Log errors, but ignore -ENOTCONN (not connected) and -EAGAIN (notifications not enabled)
+            // The service function now handles the -EAGAIN check internally before calling bt_gatt_notify_cb,
+            // but keeping the check here doesn't hurt and provides clarity.
+            // The service function bt_mysensor_notify will return -ENOTCONN or -EAGAIN if not applicable.
+            if (ret && ret != -ENOTCONN && ret != -EAGAIN) {
+                // Convert negative Zephyr error to positive errno for clearer logging
+                LOG_ERR("Failed to send MySensor data (err %d)", -ret);
             } else if (ret == 0) {
-                // Optional: Log successful send
+                // Optional: Log successful send (uncomment if desired)
                 // LOG_INF("Sent counter: %u", tick_counter);
             }
 
             // Wait for 1 second before sending the next value
             k_sleep(K_MSEC(1000));
         } else {
-            // Not connected, wait and don't send
-            LOG_WRN("Not connected, waiting...");
-            k_sleep(K_MSEC(1000));
+            // If not connected or notifications not enabled, just wait.
+            // The service function now handles the connection and notification state check.
+            // We can optionally add a log here if we want to see when it's waiting.
+            // LOG_WRN("Waiting for connection or notifications to be enabled..."); // Optional log
+            k_sleep(K_MSEC(1000)); // Wait if not connected or not subscribed
         }
     }
 }
@@ -121,7 +139,7 @@ void main(void)
         return;
     }
 
-    // sinewave_send_loop();
+    // sinewave_send_loop(); // Uncomment if you want to use the sinewave generator
 
     counter_send_loop();
 }
