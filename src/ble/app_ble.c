@@ -189,3 +189,9 @@ int app_ble_mysensor_data_send(const uint8_t *data, const uint16_t len)
     struct bt_conn *current_conn = app_ble_get_connection();
     return bt_mysensor_notify(current_conn, data, len);
 }
+
+int app_ble_mycommand_data_send(const uint8_t *data, const uint16_t len)
+{
+    struct bt_conn *current_conn = app_ble_get_connection();
+    return bt_mycommand_notify(current_conn, data, len);
+}
