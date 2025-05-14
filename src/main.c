@@ -52,6 +52,7 @@ void sinewave_send_loop() {
             }
 
             ret = app_ble_mysensor_data_send(data_buffer, sizeof(data_buffer));
+
             if (ret && ret != -ENOTCONN && ret != -EAGAIN) {
                 // Convert negative Zephyr error to positive errno for clearer logging
                 LOG_ERR("Failed to send MySensor data (err %d)", -ret);

@@ -18,35 +18,63 @@ LOG_MODULE_REGISTER(app_ble_mydevice_service);
 
 // ------------------------------------
 static void app_ble_mysensor_ccc_cfg_changed_cb(const struct bt_gatt_attr *attr, uint16_t value);
-static void app_ble_mycommand_ccc_cfg_changed_cb(const struct bt_gatt_attr *attr, uint16_t value);
+static void app_ble_myresponse_ccc_cfg_changed_cb(const struct bt_gatt_attr *attr, uint16_t value);
 
 static uint8_t command_value = 0;
-static ssize_t read_mycommand(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+static uint8_t response_value = 0;
+static ssize_t mycommand_read_cb(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 				   void *buf, uint16_t len, uint16_t offset);
-static ssize_t write_mycommand(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+static ssize_t mycommand_write_cb(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 					const void *buf, uint16_t len, uint16_t offset,
 					uint8_t flags);
 
 BT_GATT_SERVICE_DEFINE(mydevice_service,
     BT_GATT_PRIMARY_SERVICE(BT_UUID_MYDEVICE_SERVICE),
 
-    BT_GATT_CHARACTERISTIC(BT_UUID_MYSENSOR_CHAR, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
-                BT_GATT_PERM_READ, NULL, NULL, NULL), // Read permissions might be needed if notifiable characteristics are also readable.
+    BT_GATT_CHARACTERISTIC(BT_UUID_MYSENSOR_CHAR, 
+        BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+        BT_GATT_PERM_READ, NULL, NULL, NULL), // Read permissions might be needed if notifiable characteristics are also readable.
     BT_GATT_CCC(app_ble_mysensor_ccc_cfg_changed_cb, // this can be a callback, or just NULL to do nothing when the notify config changes
                 BT_GATT_PERM_READ | BT_GATT_PERM_WRITE), // CCC needs read/write permissions
     
 	BT_GATT_CHARACTERISTIC(BT_UUID_MYCOMMAND_CHAR,
-		BT_GATT_CHRC_WRITE | BT_GATT_CHRC_NOTIFY,
+		BT_GATT_CHRC_WRITE,
 		BT_GATT_PERM_WRITE,
-		NULL, write_mycommand, &command_value),
-	BT_GATT_CCC(app_ble_mycommand_ccc_cfg_changed_cb, // this can be a callback, or just NULL to do nothing when the notify config changes
+		mycommand_read_cb, mycommand_write_cb, &command_value),
+
+    BT_GATT_CHARACTERISTIC(BT_UUID_MYRESPONSE_CHAR,
+		BT_GATT_CHRC_NOTIFY,
+		NULL, NULL, NULL, &response_value),
+	BT_GATT_CCC(app_ble_myresponse_ccc_cfg_changed_cb, // this can be a callback, or just NULL to do nothing when the notify config changes
 			BT_GATT_PERM_READ | BT_GATT_PERM_WRITE), // CCC needs read/write permissions
 );
+
+// Character Value Position (Make sure this is correct relative to the service definition)
+// BT_GATT_PRIMARY_SERVICE → 1 entry
+// BT_GATT_CHARACTERISTIC → 2 entries:
+// - Characteristic Declaration
+// - Characteristic Value
+// BT_GATT_CCC → 1 entry
+enum app_ble_mysensor_char_position
+{
+	MYDEVICE_SERVICE = 0,
+
+	MYSENSOR_CHARAC_DECLARATION = 1,
+	MYSENSOR_CHARAC_VALUE = 2,
+	MYSENSOR_CCCD = 3,
+	
+	MYCOMMAND_CHARAC_DECLARATION = 4,
+	MYCOMMAND_CHARAC_VALUE = 5,
+
+	MYRESPONSE_CHARAC_DECLARATION = 6,
+	MYRESPONSE_CHARAC_VALUE = 7,
+	MYRESPONSE_CCCD = 8,
+};
 
 // ------------------------------------
 // Add a flag to track if notifications are enabled
 static bool mysensor_notifications_enabled = false;
-static bool mycommand_notifications_enabled = false;
+static bool myresponse_notifications_enabled = false;
 
 static void app_ble_mysensor_ccc_cfg_changed_cb(const struct bt_gatt_attr *attr, uint16_t value)
 {
@@ -60,29 +88,16 @@ static void app_ble_mysensor_ccc_cfg_changed_cb(const struct bt_gatt_attr *attr,
     LOG_INF("MySensor Characteristic notifications %s", notif_enabled ? "enabled" : "disabled");
 }
 
-static void app_ble_mycommand_ccc_cfg_changed_cb(const struct bt_gatt_attr *attr, uint16_t value)
+static void app_ble_myresponse_ccc_cfg_changed_cb(const struct bt_gatt_attr *attr, uint16_t value)
 {
     ARG_UNUSED(attr);
 
     bool notif_enabled = (value == BT_GATT_CCC_NOTIFY);
 
-    mycommand_notifications_enabled = notif_enabled;
+    myresponse_notifications_enabled = notif_enabled;
 
-    LOG_INF("MyCommand Characteristic notifications %s", notif_enabled ? "enabled" : "disabled");
+    LOG_INF("MyResponse Characteristic notifications %s", notif_enabled ? "enabled" : "disabled");
 }
-
-// Character Value Position (Make sure this is correct relative to the service definition)
-// Primary Service (1) + Characteristic (1) + CCC (1) = 3. Index is 0-based.
-enum app_ble_mysensor_char_position
-{
-	MYDEVICE_SERVICE = 0,
-	MYSENSOR_CHARAC_DECLARATION = 1,
-    MYSENSOR_CHARAC_VALUE = 2, // 0: Service UUID, 1: Characteristic UUID, 2: Characteristic Value, 3: CCCD
-	MYSENSOR_CCCD = 3,
-	MYCOMMAND_CHARAC_DECLARATION = 4,
-    MYCOMMAND_CHARAC_VALUE = 5,
-	MYCOMMAND_CCCD = 6,
-};
 
 // Expose a getter function for the notification state
 bool bt_mysensor_are_notifications_enabled(void)
@@ -91,12 +106,12 @@ bool bt_mysensor_are_notifications_enabled(void)
 }
 
 // Expose a getter function for the notification state
-bool bt_mycommand_are_notifications_enabled(void)
+bool bt_myresponse_are_notifications_enabled(void)
 {
-    return mycommand_notifications_enabled;
+    return myresponse_notifications_enabled;
 }
 
-int bt_mysensor_notify(struct bt_conn *current_conn, const uint8_t *data, const uint16_t len)
+int bt_mysensor_setandnotify(struct bt_conn *current_conn, const uint8_t *data, const uint16_t len)
 {
     // The main loop will now check for connection and notification state before calling this.
     // This function will primarily handle the actual GATT notify call and its immediate result.
@@ -121,12 +136,12 @@ int bt_mysensor_notify(struct bt_conn *current_conn, const uint8_t *data, const 
     return 0; // Success
 }
 
-int bt_mycommand_notify(struct bt_conn *current_conn, const uint8_t *data, const uint16_t len)
+int bt_myresponse_setandnotify(struct bt_conn *current_conn, const uint8_t *data, const uint16_t len)
 {
     // The main loop will now check for connection and notification state before calling this.
     // This function will primarily handle the actual GATT notify call and its immediate result.
 
-    const struct bt_gatt_attr *attr = &mydevice_service.attrs[MYCOMMAND_CHARAC_VALUE];
+    const struct bt_gatt_attr *attr = &mydevice_service.attrs[MYRESPONSE_CHARAC_VALUE];
     struct bt_gatt_notify_params params = {
         // .attr = attr,
         .attr = attr,
@@ -140,7 +155,7 @@ int bt_mycommand_notify(struct bt_conn *current_conn, const uint8_t *data, const
     if (ret) {
         // This log will now only appear for actual transmission errors, not due to
         // notifications being disabled or not connected.
-        LOG_ERR("Failed to send MySensor notification (err %d)", ret);
+        LOG_ERR("Failed to send MyResponse notification (err %d)", ret);
         return ret;
     }
 
@@ -150,7 +165,7 @@ int bt_mycommand_notify(struct bt_conn *current_conn, const uint8_t *data, const
 // ------------------------------------
 
 // Read callback function for the Command Characteristic
-static ssize_t read_mycommand(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+static ssize_t mycommand_read_cb(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 				   void *buf, uint16_t len, uint16_t offset)
 {
 	// Get the pointer to the characteristic value from the attribute's user_data
@@ -164,7 +179,7 @@ static ssize_t read_mycommand(struct bt_conn *conn, const struct bt_gatt_attr *a
 
 static uint8_t cmd_response_data[4];
 
-static ssize_t write_mycommand(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+static ssize_t mycommand_write_cb(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 					const void *buf, uint16_t len, uint16_t offset,
 					uint8_t flags)
 {
@@ -174,7 +189,7 @@ static ssize_t write_mycommand(struct bt_conn *conn, const struct bt_gatt_attr *
 		LOG_WRN("Invalid write length for command characteristic (%d vs %d expected)", len, sizeof(command_value));
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
 	}
-
+    
 	if (offset > 0) {
 		LOG_WRN("Invalid write offset for command characteristic (%d)", offset);
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
@@ -187,7 +202,7 @@ static ssize_t write_mycommand(struct bt_conn *conn, const struct bt_gatt_attr *
 	    case 0x01:
 	        LOG_INF("Received command: Start something!");
 			cmd_response_data[0] = 0x09;
-			bt_mycommand_notify(conn, cmd_response_data, sizeof(cmd_response_data));
+			bt_myresponse_setandnotify(conn, cmd_response_data, sizeof(cmd_response_data));
 	        LOG_INF("Sent Command Response Data: %d", cmd_response_data[0]);
 	        break;
 	    case 0x02:

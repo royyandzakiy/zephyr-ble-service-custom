@@ -187,11 +187,11 @@ struct bt_conn *app_ble_get_connection(void)
 int app_ble_mysensor_data_send(const uint8_t *data, const uint16_t len)
 {
     struct bt_conn *current_conn = app_ble_get_connection();
-    return bt_mysensor_notify(current_conn, data, len);
+    return bt_mysensor_setandnotify(current_conn, data, len);
 }
 
-int app_ble_mycommand_data_send(const uint8_t *data, const uint16_t len)
+int app_ble_myresponse_data_send(const uint8_t *data, const uint16_t len)
 {
     struct bt_conn *current_conn = app_ble_get_connection();
-    return bt_mycommand_notify(current_conn, data, len);
+    return bt_myresponse_setandnotify(current_conn, data, len);
 }
