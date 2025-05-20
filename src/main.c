@@ -75,7 +75,7 @@ static uint8_t counter_data_buffer[4]; // Buffer to hold a 32-bit counter
 
 void counter_send_loop() {
     int ret;
-    LOG_INF("Tick counter generator started");
+    LOG_INF("Tick counter generator in standby");
 
     while (1) {
         struct bt_conn *conn = app_ble_get_connection();
@@ -99,7 +99,8 @@ void counter_send_loop() {
                 LOG_INF("Sent counter: %u", tick_counter);
             }
 
-            k_sleep(K_MSEC(1000));
+            // k_sleep(K_MSEC(1000));
+            k_sleep(K_MSEC(10));
         } else {
             // LOG_WRN("Waiting for connection or notifications to be enabled..."); // Optional log
             k_sleep(K_MSEC(1000));

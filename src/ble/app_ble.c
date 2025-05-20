@@ -1,3 +1,4 @@
+// app_ble.c
 #include <zephyr/kernel.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
@@ -19,6 +20,7 @@ struct bt_conn *current_conn = NULL;
 static const struct bt_data ad[] = {
     BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)), // BT_LE_AD_NO_BREDR means cannot use Bluetooth Classic
     BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),
+    BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_MYDEVICE_SERVICE_VAL),
 };
 
 /* ============== UPDATE PARAMS ============== */
@@ -133,7 +135,7 @@ void on_le_phy_updated(struct bt_conn *conn, struct bt_conn_le_phy_info *param)
 
 void on_le_data_len_updated(struct bt_conn *conn, struct bt_conn_le_data_len_info *info)
 {
-	uint16_t tx_len     = info->tx_max_len; 
+	uint16_t tx_len     = info->tx_max_len;
 	uint16_t tx_time    = info->tx_max_time;
 	uint16_t rx_len     = info->rx_max_len;
 	uint16_t rx_time    = info->rx_max_time;
@@ -144,10 +146,10 @@ struct bt_conn_cb connection_callbacks = {
     .connected = on_connected,
     .disconnected = on_disconnected,
     .le_param_updated   = on_le_param_updated,
-    #ifndef CONFIG_BOARD_ESP32S3_DEVKITC
+    #ifdef CONFIG_BOARD_ESP32_DEVKITC
 	.le_phy_updated     = on_le_phy_updated,
 	.le_data_len_updated    = on_le_data_len_updated,
-    #endif // CONFIG_BOARD_ESP32S3_DEVKITC
+    #endif // CONFIG_BOARD_ESP32_DEVKITC
 };
 
 /* ============== EXTERNAL INTERFACES ============== */

@@ -179,6 +179,7 @@ static ssize_t mycommand_read_cb(struct bt_conn *conn, const struct bt_gatt_attr
 
 static uint8_t cmd_response_data[4];
 
+#ifndef _ADDITIONALS_H_
 static ssize_t mycommand_write_cb(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 					const void *buf, uint16_t len, uint16_t offset,
 					uint8_t flags)
@@ -215,3 +216,8 @@ static ssize_t mycommand_write_cb(struct bt_conn *conn, const struct bt_gatt_att
 
 	return len;
 }
+#else
+
+#include "commands.h"
+
+#endif // _ADDITIONALS_H_
